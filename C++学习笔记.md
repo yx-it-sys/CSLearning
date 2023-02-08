@@ -965,7 +965,7 @@ inline bool fibon_elem(int pos, int &elem)
 
 <center> #define	ExpressionName(Var1, Var2) ((Var1+Var2)*(var1-Var2))
 
-</center>
+  
 
 这种宏定义效率很高，但是仅仅是符号表中的简单替换，不能享受C++编译器严格检查的好处，它的返回值也不能被强制转换为合适的类型。inline函数克服了这一缺陷。因此实际上设置成inline的函数，就相当于宏定义中的符号替换。
 
@@ -1501,7 +1501,7 @@ int main()
 
 继承机制使我们得以将一群相关的类组织起来，并让我们得以**分享其间的共同数据和操作行为**。继承机制定义了父子关系。父类定义所有**子类共通的数据接口（public interface）和私有实现（private implementation）**。通俗地讲，就是子类的操作既来源于父类遗传的行为，也包括自身特有的行为。父类称为基类（basic class），子类被称为派生类（derived class）。基类与派生类之间的关系称为继承体系（inheritance hierarchy）。
 
-<img src="LibMat.png" alt="图3.1 图书馆借阅系统中的“外借馆藏类继承体系”" style="zoom:80%;" />
+![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302081942148.png)
 
 上图就是一个继承的实例，相对于Book，RentalBook、AudioBook、CDIBook就是一个派生类，三个派生类含有父类Book的全部数据接口和自身独特的具体实现。LibMat不代表任何一个馆藏，仅仅是为了我们的设计上的需要而实现，我们称之为抽象基类。
 
@@ -1517,7 +1517,7 @@ int main()
 
 ​		STL主要由两种组件构成：一是容器(container)，二是操作这些容器的泛型算法，包括find(), sort(), replace(), merge()等。容器可分为顺序性容器，主要进行迭代操作，和关联性容器，可以快速查找容器中的元素值。
 
-![Alt text](Standard template Library.png)
+![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302081943362.png)
 
 ​		map是一对对**key/value**组合。key表示用于查找，value用来表示我们要存储或取出的数据。set仅含有key。我们对set进行查找，为的是**判断某值是否存在于其中**。如果我们想要建立一组索引表，用来记录出现于新闻、故事中的字眼，我们会将一些“中性字眼”比如*the*、*an*、*but*排除掉。用set就可以实现这个功能。
 
