@@ -965,7 +965,7 @@ inline bool fibon_elem(int pos, int &elem)
 
 <center> #define	ExpressionName(Var1, Var2) ((Var1+Var2)*(var1-Var2))
 
-  
+
 
 这种宏定义效率很高，但是仅仅是符号表中的简单替换，不能享受C++编译器严格检查的好处，它的返回值也不能被强制转换为合适的类型。inline函数克服了这一缺陷。因此实际上设置成inline的函数，就相当于宏定义中的符号替换。
 
@@ -1513,31 +1513,76 @@ int main()
 
 程序执行某一类的操作时，到底应该执行哪一个子类的操作，应该由程序真正运行时决定，而不是固定的。这就是动态绑定。
 
-## 第四章 泛型编程风格(Generic Programming)
+## 3.2 初识面向对象程序
 
-​		STL主要由两种组件构成：一是容器(container)，二是操作这些容器的泛型算法，包括find(), sort(), replace(), merge()等。容器可分为顺序性容器，主要进行迭代操作，和关联性容器，可以快速查找容器中的元素值。
+​		在C++中，定义一个类需要创建.h头文件和.cppC++文件。其中头文件中包括**类的声明（declaration）和函数的原型（prototypes），函数的定义即函数体（bodies）则放置在源文件.cpp中。** **注意定义（definition）和声明（declaration）的严重区别！**
 
-![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302081943362.png)
+### 3.2.1 解析符(resolver) ::
 
-​		map是一对对**key/value**组合。key表示用于查找，value用来表示我们要存储或取出的数据。set仅含有key。我们对set进行查找，为的是**判断某值是否存在于其中**。如果我们想要建立一组索引表，用来记录出现于新闻、故事中的字眼，我们会将一些“中性字眼”比如*the*、*an*、*but*排除掉。用set就可以实现这个功能。
+```c++
+void S::f(){
+    ::f(); // 没有解析符f()就会递归！最终导致栈的溢出。加上解析符而没有标注所属类代表这是一个全局的函数。
+    ::a++; // 选用全局变量a。
+    a--; // 代表对象S中的一个成员变量 
+}
+```
 
+### 3.2.2 头文件
 
+​		如果函数或类在头文件中声明，**必须要在函数使用以及定义的地方`#include`**。
 
-​		
+![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302111409203.png)
 
+编译器在编译过程中，遇到`#include`的时候会进行编译预处理，将`include`的头文件中的代码插入到#include处。
 
+<center> .cpp--编译预处理指令-->.ii--编译器-->.s--汇编器-->.o
+```C++
+//header file a.h
+void f();
+int global;
+```
 
+​		在C++中上述的头文件中的代码是错误的，因为头文件中是函数和类的**声明**而非**定义**，所以`int global`这一行是不对的。如果我程序中含有两个.cpp文件，在编译的连接过程中，由于头文件中定义语句的存在，会出现变量的重复定义，实际上是定义的变量重名。解决方法很自然地就是将定义转化为声明。**关键字`extern`就是对全局变量的声明**
 
+```c++
+//header file a.h
+void f();
+extern int global;
+```
 
+​		然而，声明仅仅是声明，编译器并没有给global分配内存，即没有定义一个叫`global`的变量。在.cpp文件中，要定义一个global
 
+```C++
+#include "a.h"
+int global;
+void f()
+{
+    global++;
+}
+```
 
+当然了，如果程序中没有使用`global`将不会产生任何错误，甚至是没有warning。
 
+​		extern变量、函数的原型、类和结构体的创建都是声明，只有这些声明才被允许放在.h文件中。
 
+​		标准头文件的结构是
 
+```c++
+#ifndef HEADER_FLAG
+#define HEADER_FLAG
+// Type declaration here
+// ...
 
+#endif
+```
 
+条件编译，如果引用多个头文件，这些被引用的头文件中相互包含，那么没有条件编译会使类声明重复。
 
+​		在写头文件的时候，因当遵循以下的良好习惯：
 
+1. 每个头文件中只放置一个类的声明。
+2. 不同源代码文件的前缀相同。
+3. 头文件的内容要被`#ifndef #define #endif`环绕起来。
 
 
 
