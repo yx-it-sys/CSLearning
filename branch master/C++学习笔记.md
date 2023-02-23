@@ -1657,9 +1657,7 @@ int main()
 
 程序的结果是：
 
-![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302131600913.png)
-
-
+![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302221642468.png)
 
 **a.i和a的地址是一样的，因为对象里面除了i没有其他东西了。**在函数内部得到的地址也是a的地址，A::f的i就是a的i。aa是另一个不同的对象，它的地址，成员变量的地址都不同于a的地址。被调用的函数和调用它的变量有某种联系，所以才会识别出不同对象的不同成员变量“i”。这种联系是*this*指针，所有的函数都有一个隐藏的参数叫this，在c++中是一个关键词。
 
@@ -1675,7 +1673,7 @@ void A::f()
 }
 ```
 
-![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302131614382.png)
+![Alt](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302221641650.png)
 
 这是函数的隐藏参数，你无须主动去设定，它指向调用这个函数的对象，这样，函数就能知道作用于哪个对象的成员变量了。这个也是C语言设计C++这些功能的方式，深入认识C++，**就要去试图想这个功能如何用C去实现。**
 
@@ -1704,13 +1702,15 @@ C++不对变量进行自动的初始化，在Visual C++编译器中，会在定�
 
 ​		以上是实现变量初始化的手动方法，它依赖于程序员的自觉性，在设计程序时，要手动添加初始化的代码。
 
+### 3.2.4 构造函数
+
 ​		C++提供了constructor函数，中文叫构造函数。**构造函数名与类名相同，并没返回类型。构造函数有参数，可以是确定对象如何创造的、可以是初始化变量、等等。**
 
 ```C++
 class X{
     int i;
    public:
-    X();//构造函数，与类名相同，无返回类型
+    X();//构造函数，与类名相同，无返回类型，后面介绍这是Default Constructor
 };
 
 X::X(int entry){
@@ -1740,6 +1740,74 @@ Y::Y(int entry){
 Y::~Y(){
     // ...
 }
+```
+
+```c++
+//main.cpp
+int main()
+{
+    std::cout<<"before opening bace"<<std::endl;
+    {
+        Y y(12);
+        //...
+    }//加入了花括号，则将y的scope限制在了花括号之中。
+}
+```
+
+上述的y什么时候会被析构呢？在花括号结束之后，y就要被析构。析构之后，变量的空间就要被收回。如果程序中没有析构函数，编译器会自动析构。
+
+### 3.2.5对象的初始化
+
+对于一个函数或者一对花括号构建起的作用域，编译器在运行到**花括号的时候就已经将花括号中的变量分配好了空间**，而构造函数只有运行到了**定义语句**才开始进行变量的初始化。
+
+```c++
+void f(int i){
+    if(i<10){
+        goto jump1;
+    }
+    X x1; //Constructor called here
+    jump1:
+    switch(i){
+        case 1:
+            X x2; //Constructor called here
+            break;
+        case 2:
+            X x3;
+            break;
+    }
+}
+```
+
+运行这段代码，当使用`goto`运行到了`Switch`语句之后，构造函数`X x1`就没有被运行。既然没有被运行，而又为`x1`开辟了空间，等到程序将其析构之后就会遇到问题。(报错：控制传输跳过初始化)
+
+各种类型变量的初始化：(注：**在C++中，structure和class是一样的，只有一些十分细微的差别**)
+
+```c++
+int a[5] = {1, 2, 3, 4, 5};
+
+int b[6] = 5; //b = {5, 0, 0, 0, 0, 0}
+
+int c[]={1, 2, 3, 4}; //sizeof c/sizeof *c
+
+struct X{int i; float f; char c;};
+X x1 = {1, 2.2, 'c'};
+X x2[3] = {{1, 1.1, 'a'}, {2, 2.2, 'b'}};
+
+struct Y{float f; int i; Y(int a);};
+Y y1[] = {Y(1), Y(2), Y(3)}// structure之中含有了构造函数
+```
+
+默认的构造函数：是可以不带参数来调用的构造器。**注：不是Auto Default Constructor，那个是编译期自动给的构造，Default Constructor是自己设计的、不带参数的构造函数**。
+
+```c++
+struct Y{
+    float f;
+    int i;
+    Y(int a) // 不是Default Contructor
+}
+Y y1[] = {Y(1), y(2), Y(3)};
+Y y2[2] = {Y(1)}; //错误(活动)	E0289	没有与参数列表匹配的构造函数 "Axx::Axx" 实例、“Axx”没有合适的默认构造函数可用（来自Visual C++）	
+
 ```
 
 
