@@ -17,6 +17,8 @@ bool INIT_Sq(SqList* L) {
 		
 		return true;
 	}
+
+//²åÈëÔªËØ
 bool ListInsert_Sq(SqList* L, int i, int e)
 {
 	if (i<1 || i>L->length + 1) return 2;
@@ -28,11 +30,29 @@ bool ListInsert_Sq(SqList* L, int i, int e)
 		L->listsize += LISTINCREMENT;
 	}
 	int* q = &(L->elem[i - 1]);
+	
 	for (int* p = &(L->elem[(L->length) - 1]); p >= q; --p) {
-		*(p + 1) = *p;
+		*(p +1) = *p;
 	}
 	*q = e;
 	++L->length;
+	return true;
+}
+
+//É¾³ıÔªËØ
+int ListDelete_Sq(SqList* L, int i)
+{
+	if (i<1 || i>L->length) {
+		return 2;
+	}
+	int* p = &(L->elem[i - 1]);
+	int e = *p;
+	int* q = (L->elem) + (L->length) - 1;
+	for (++p; p <= q; p++) {
+		*(p - 1) = *p;
+	}
+	--(L->length);
+	return e;
 }
 int main()
 {
@@ -49,5 +69,11 @@ int main()
 	for (int i = 0; i < 6; i++) {
 		printf("\n%d\n", *(t.elem + i));
 	}
+
+	ListDelete_Sq(L, 3);
+	for (int i = 0; i < 5; i++) {
+		printf("\n%d\n", *(t.elem + i));
+	}
+
 	return 0;
 }

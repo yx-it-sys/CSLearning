@@ -1818,9 +1818,9 @@ Y y2[2] = {Y(1)}; //错误(活动)	E0289	没有与参数列表匹配的构造函
 
 ```
 
-同样地，在类中定义了一个构造函数，而没有进行类的初始化，同样会报错：类“   ”找不到默认的构造函数。
+同样地，在类中定义了一个构造函数，而没有进行类的初始化，同样会报错：类“ XXX”找不到默认的构造函数。
 
-可以用关键字`default`来显示编译器的版本
+可以用关键字`default`来要求编译器生成构造函数。其中，`=default`既可以和声明一起出现在类的内部（inline），也可以作为定义出现在类的外部。
 
 ```C++
 class D{
@@ -1904,3 +1904,290 @@ int main()
 3. 如果使用`new Type []`来申请内存，要使用`delete []`来响应的释放掉**否则程序会出错终止！**
 4. **delete一个null指针是安全的，因为它遇到null根本不做事情！**
 5. delete应写尽写，在设计大型常运行软件时，不使用delete，会造成内存泄露。
+
+### 3.2.7 友元（Friends）
+
+类可以允许其他**类或者函数**访问它的非公有成员（private），方法是令其他类或者函数成为它的友元。想把一个函数变成友元，只需要在开头加上关键字`friend`即可。
+
+```c++
+struct X; //不完整的结构体定义，称为前向声明。为了让第四行的语句编译可以通过。
+
+struct Y{
+    void f(X*);
+};
+
+struct X{
+    private:
+    int i;
+    public:
+    void initialize();
+    friend void g(X* x, int i); // Global friend
+    friend void Y::f(X*); // Struct member friend
+    friend struct Z; // Entire struct is a friend
+    friend void h();
+};
+
+// .cpp
+void X::initialize(){
+    i = 0;
+}
+
+void g(X* x, int i){
+    x -> i = i;
+}
+
+void Y::f(X* x){
+    x -> i = 47;
+}
+
+struct Z{
+    private:
+    int j;
+}
+```
+
+友元在运算符重载中经常使用
+
+### 3.2.8 构造函数初始值列表
+
+```c++
+using namespace std;
+
+struct A{
+    int i;
+    int* p;
+   public:
+    A(){p=0; cout<<"A::A()"<<endl;}
+    /*可以将第七行的p以初始化列表的方法赋初始值*/
+    A():p(0){cout<<"A::A()"<<endl;}
+    
+    ~A(){if(p)delete p; cout<<"A::~A()"<<I<<endl;}
+    
+}
+```
+
+```c++
+class Point{
+    private:
+    const float x, y;
+    Point(float xa = 0.0, float ya = 0.0)
+        : y(ya), x(xa){}		// Initialized list
+};
+```
+
+初始化列表的进行会早于构造函数的运行。
+
+观察下面的代码，比较构造函数初始化与列表初始化的不同
+
+```c++
+Student::Student(string s):name(s){} //初始化
+Student::Student(string s){
+    name = s; // 先初始化 name，后对name赋值
+}
+```
+
+结果都是对对象进行了初始化，但是运行的机制不一样。第二种方式因为没有给变量`name`一个初始值，运行赋值语句`name = s;`**之前还是要先对`name`进行初始化，只是用什么值进行初始化没有明确**。
+
+看一个构造函数初始化的例子：
+
+```c++
+// b.cpp
+class B{
+   public:
+    	B(int i){}
+};
+
+struct A{
+    int i;
+    B b;
+   public:
+    A():i(0){b=0};
+}
+
+g++ b.cpp
+
+错误:	C2512	“B”: 没有合适的默认构造函数可用	
+```
+
+加上B的默认构造函数：
+
+```c++
+// b.cpp
+class B{
+   public:
+    	B(int i){}
+    	B(){}
+};
+
+struct A{
+    int i;
+    B b;
+   public:
+    A():i(0){b=0};
+}
+
+g++ b.cpp
+
+编译通过！
+```
+
+采用初始化列表：
+
+```c++
+int main()
+{
+	class B {
+	public:
+		B(int i) {}
+	};
+	struct A {
+		int i;
+		B b;
+	public:
+		A() :i(0), b(0) {  }
+	};
+}
+g++ a.cpp
+编译通过！
+```
+
+**类的所有成员变量，都要用初始化列表进行初始化**。
+
+### 3.2.9 对象的组合（Composition）
+
+软件重用在OOP编程中除了常用的类的继承，还有对象的组合。
+
+![](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302251645132.png)
+
+对象的组合就是把不同的对象封装在一个大的对象之中，即，对象之中包含对象。包含对象有两种方式——fully和by reference。顾名思义，fully就是对象真的是在对象之中定义的；by reference是大的对象之中含有小对象的位置（地址）。
+
+**Fully：成员变量是对象本身；By reference：成员变量是另一个对象的地址。**
+
+**对象组合的初始化**
+
+因为组合对象中含有别的对象，因此会有别的类的构造函数，那么在进行初始化的过程中，该如何进行初始化？对象放到新的对象之中还是保持它的封装，初始化还是应该由自己管理。**应当使用列表初始化**。
+
+```c++
+SavingsAccount::SavingsAccount(const char* name, const char* address, int cents):m_saver(name, address)
+    , m_balance(0, cents){} // Initialized list
+
+void SavingsAccount::print(){
+    m_saver.print();
+    m_balance.print(); // 处于SavingsAccount类的两个类m_saver和m_balance调用的还是自己类中的操作。
+}
+```
+
+如果在一个类里面的某些个成员变量是对象，它应该用Initialized list进行初始化。
+
+```c++
+savingsAccount::SavingsAccount(const char* name, const char* address, int cents){
+    m_saver.set_name(name);
+    m_saver.set_address(address);
+    m_balance.set_cents(cents);
+} // 这样的写法需要默认构造函数
+```
+
+### 3.2.10 继承 （Inheritance）
+
+具有继承关系的类，父类（Parent Class又名基类（Basic Class）、超类（Super Class））的数据、操作、接口（public的method）是共享的，是C++核心的技术。
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302271703046.png" alt="image-20230227170320847" style="zoom:67%;" />
+
+子类（Sub Class，又名派生类（Derive Class）、Child）除了拥有父类的一切操作和数据，还会在此基础上进行扩充，子类是父类的超集，父类是子类的超类。
+
+```c++
+class A{
+public:
+    	A():i(0){cout << "A::A()" < <endl;}
+    	~A(){cout << "A::~A()" << endl;}
+    	void print(){cout << "A::print()" << i << endl;}
+    	void set(int ii){this -> i = ii;}
+private:
+    	int i;
+};
+
+class B : public A{ //表达继承的语法
+    
+};
+
+int main()
+{
+    B b;
+    b.set(10);
+    b.print();
+    return 0;
+}
+```
+
+运行结果：
+
+![image-20230301161217213](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303011612416.png)
+
+子类b是否可以直接访问基类的private呢？
+
+```c++
+class A{
+public:
+    	A():i(0){cout << "A::A()" < <endl;}
+    	~A(){cout << "A::~A()" << endl;}
+    	void print(){cout << "A::print()" << i << endl;}
+    	void set(int ii){this -> i = ii;}
+private:
+    	int i;
+};
+
+class B : public A{ 
+public:
+    void f(){
+        i = 30; //直接访问
+        print();
+    }
+};
+
+int main()
+{
+    B b;
+    b.set(10);
+    b.print();
+    b.f();
+    return 0;
+}
+```
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303011617862.png" alt="image-20230301161733675" style="zoom: 80%;" />
+
+基类中**私有的东西在子类中是存在的。但是没有权限直接访问，只允许通过操作使用**。
+
+```c++
+class A{
+public:
+    	A():i(0){cout << "A::A()" < <endl;}
+    	~A(){cout << "A::~A()" << endl;}
+    	void print(){cout << "A::print()" << i << endl;}
+protected:
+    	void set(int ii){this -> i = ii;}
+private:
+    	int i;
+};
+
+class B : public A{ 
+public:
+    void f(){
+        set(20); //子类访问protected，被允许。
+        print();
+    }
+};
+
+int main()
+{
+    B b;
+    b.set(10); // 外部访问protected，被禁止！！！！！！！！！！！！！！！！！！！！！！！！
+    b.print();
+    b.f();
+    return 0;
+}
+```
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303011623055.png" alt="image-20230301162335876" style="zoom:80%;" />
+
+**protected通常被用于给它的子类访问private的接口**。
