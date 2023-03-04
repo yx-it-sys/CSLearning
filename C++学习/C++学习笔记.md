@@ -549,8 +549,16 @@ void bubble_sort(vector<int> &vec)
 ```C++
 int ival = 1024;	//对象，类型为int
 int *p = &ival;		//pointer，指向一个int对象
-int &rval = ival;	//reference（引用），代表一个int对象
+int &rval = ival;	//reference（引用），代表一个int对象，rval是对ival的引用，是ival的别名
+const int& z = x;   //z是x的别名，通过z不可以修改x！
 ```
+
+```c++
+void f(int& x);
+f(y); //y是x的引用
+```
+
+**引用必须要有位置，即变量名，否则会出错。**
 
 **C++不允许我们改变reference所代表的对象，它们必须从一而终。**因此，当我们这么写
 
@@ -578,6 +586,42 @@ void func(int &val)
 
 是等价的，两个运算是互逆的，相比较vector以pointer传递，以reference传递显得更加直接，因为val是变量，程序中已经存在，而且直观；p是指针，属于脱离与程序创造出的新变量，不那么直观。
 
+```c++
+int* f(int* x){
+    (*x) ++;
+    return x;
+}
+int& g(int& x){
+    x ++;
+    return x;
+}
+
+int x;
+
+int& h(){
+    int q;
+    //return q; //ERROR
+    return x;
+}
+```
+
+reference可以做左值：
+
+```c++
+int x;
+int& h(){
+    return x; //实际上是将全局变量x变成reference给返回
+}
+int main()
+{
+    h() = 16; //OK! x=16
+    int a = 0;
+    g(a); //不易被理解，而且a也可能会被x改变
+}
+```
+
+
+
 　以上探讨了pass by refernce的作用之一：希望得以直接对所传入的对象进行修改。还有一个略显不那么重要的理由是使程序的效率提高。传入参数的过程是复制变量存储的数据的过程，而直接传入指针，没有复制的这一步。例如将display函数的调用方式改成
 
 ```C++
@@ -592,25 +636,14 @@ void display(const vector<int> &vec)
 
 避免了复制操作。其中，我定义了const类型的变量，主要起强调作用，强调vec不会发生改变。实际上，少了*const*程序也不会报错。
 
-　reference和pointer的用法不太相同，区别在于使用pointer使一定确保指针非零，因为指针可能指向其他奇奇怪怪的对象。
+　reference和pointer的用法不太相同，区别在于使用pointer使一定确保指针非零，因为指针可能指向其他奇奇怪怪的对象。reference必须依附于某一变量，而且一旦指定，便不可被修改。
 
-```C++
-void display(const vector<int> *vec)
-{
-    if(! vec){
-        cout << "display(): the vector pointer is 0\n";
-        return;
-    }
-    for(int ix = 0; ix < vec->size(); ix++){
-        cout << *(vec)[ix] << ' ';
-    }
-    cout << endl;
-}
-int main()
-{
-    ......
-}
-```
+**Reference的限制：**
+
+1. 没有引用的引用。
+2. 没有指向reference的指针。
+3. 有指针的reference（指针的别名）。
+4. 没有引用数组，reference不是一个实体。
 
 #### 作用域及范围
 
@@ -901,79 +934,9 @@ fibon_seq(int size)
 }
 ```
 
-### 2.5 声明inline函数
-
-​		模块化、程式化编程一直以来都是编写程序所恪守的原则。所谓模块化，就是将程序以最简单的逻辑设计。每个逻辑节点通常是某种动作功能。这一动作功能为一函数。在之前的实例中，`fibo_elem()`返回一个Fibonacci数列元素，其位置由用户指定。我们将各个小工作分解为独立函数，以求更简化：
-
-```c++
-bool is_size_ok(int size)
-{
-	const int max_size = 1024;
-	if (size<0 || size>max_size) {
-		cerr << "Requested size is not supported: "
-			<< size << "--can't fulfill request.\n";
-		return false;
-	}
-	return true;
-}
-//计算Fibonacci数列中的size个元素，
-//并返回持有这些元素的静态容器的地址
-const vector<int>*
-fibon_seq(int size)
-{
-	const int max_size = 1024;
-	static vector<int>elems;
-
-	if (!is_size_ok(size))
-		return 0;
-
-	for (int ix = elems.size(); ix < size; ix++) {
-		if (ix == 0 || ix == 1)
-			elems.push_back(1);
-		else elems.push_back(elems[ix - 1] + elems[ix - 2]);
-	}
-	return &elems;
-}
-
-//返回Fibonacci数列中位置为pos的元素
-//如果程序无法支持该位置上的元素，便返回false
-bool fibon_elem(int pos, int& elem)
-{
-	const vector<int>* pseq = fibon_seq(pos);
-
-	if (!pseq) {
-		elem = 0; return false;
-	}
-	elem = (*pseq)[pos - 1];
-	return true;
-}
-```
-
-这样的设计，使得每一个函数只实现一个功能。但是有些时候，编译过程中编译的函数过多会降低程序运行的性能。C++提供了inline（内联函数）解决了该问题。
-
-​		将函数声明为inline，表示编译器在每个函数调用点上，将函数的内容展开。面对一个inline函数，编译器可将该函数的调用操作改为以**一份代码副本**代替，其结果是把三个函数写入fibo_elem()内，**但依然维持三个独立的运算单元**。
-
-```c++
-//现在fibon_elem()成了inline函数
-inline bool fibon_elem(int pos, int &elem)
-{
-    //....
-}
-```
-
-​		在函数返回类型之前加上关键字inline，可以解决一些频繁调用的函数大量消耗栈空间（栈内存）的问题。引入inline函数是为了替代**C中表达式的宏定义**。
-
-<center> #define	ExpressionName(Var1, Var2) ((Var1+Var2)*(var1-Var2))
 
 
-
-这种宏定义效率很高，但是仅仅是符号表中的简单替换，不能享受C++编译器严格检查的好处，它的返回值也不能被强制转换为合适的类型。inline函数克服了这一缺陷。因此实际上设置成inline的函数，就相当于宏定义中的符号替换。
-
-​		一般而言，最适合声明为inline的函数，和`fibon_elem()`以及`is_size_ok()`一样：**体积小，常被调用，所从事的计算并不复杂**。
-
-​		值得一提的是。将函数指定为inline，只是对编译器提出的一种要求。编译器是否执行这样的要求，须视编译器而定。inline函数的定义，常常被放在头文件中。**关键字inline必须与函数定义放在一起才能使函数成为内联函数，仅仅将inline函数放在函数声明前不起任何作用。**
-
-### 2.6 提供重载函数
+### 2.5 提供重载函数(Function Overloading)
 
 ​		假设我们已经写好了一个通用的函数`display_message()`用来显示我们需要显示的信息。我们可能需要显示一串数字，也可能是一段字符，也可能是转义字符`\t\n`。但是我们定义函数的时候，参数列表已经唯一地指定。这样过于僵硬，我们想要让其灵活地实现显示各种数据类型的对象。怎么办？通常，一个函数的定义全部由定义该函数的所有性质决定：函数名，返回值类型，参数列表，函数体。由集合的外延公理，性质有一个不一样，那么整个函数就是不一样的函数，例如
 
@@ -985,7 +948,7 @@ void display_message(int, const string&);
 void display_message(const string&, int, int);
 ```
 
-实际上这是五个不同的函数，但是具有相同的函数名，我们称其为**函数的重载**。后面讲到模板函数会讲到实现它的具体方法。我们要讨论重载函数的正确使用方法。
+实际上这是五个不同的函数，但是具有相同的函数名，我们称其为**函数的重载**。函数的重载实际上是有编译器将C++代码转换成汇编语言的时候，会对重载的函数名称进行改动。我们要讨论重载函数的正确使用方法。
 
 ​		编译器**无法根据函数返回类型来区分两个具有相同名称的函数。**以下是不正确的写法：
 
@@ -1003,7 +966,259 @@ display_message('\t');//到底是哪一个函数呢？
 
 ​		将一组实现代码不同但工作内容相似的函数加以重载，可以让函数用户更容易使用这些函数。如果没有函数重载机制，我们就得为每个函数提供不同的名称。
 
-### 2.7 定义并使用模板函数
+### 2.6函数默认参数（缺省参数值）
+
+函数的默认参数值是在进行函数声明时，给参数列表中的参数提供一个值的方法，如果你不提供一个默认的参数值，编译器也会自动提供一个默认的参数值。
+
+```c++
+int main(){
+Stash(int size, int initQuantity = 0);
+Stash(1); //OK
+Stash(1,3); //OK
+}
+```
+
+在参数表中传入默认参数值的时候，默认值的传递要从最右端开始写：
+
+```c++
+int harpo(int n, int m=4, int j=5);
+int chicho(int n, int m=6, int j); //illegal
+```
+
+Default argument写在头文件中，不能再.cpp文件中重复
+
+```c++
+//a.h
+void f(int i, int j=0);                       /**/
+//a.cpp
+#include "a.h"
+void(int i, int j=0){                         /**/
+    cout << i << " " << j << endl;
+}
+//main.cpp
+#include"a.h"
+int main()
+{
+    f(10);
+    return 0;
+}
+```
+
+**程序错误："f"重定义默认参数。**如果不在头文件中给j提供默认参数，而在a.cpp中提供呢？**程序错误："f"函数不接受默认参数**。
+
+默认参数值是在编译的时候进行的事情，而非运行，函数其实还是要了两个参数，编译器看到了函数的原型声明，补上了相应的参数值。
+
+下面是证据：
+
+```c++
+//a.h
+int f(int i, int j=0);
+//main.cpp
+#include<iostream>
+void f(int i, int j=10);
+int main()
+{
+    f(10);
+    return 0;
+}
+```
+
+输出结果：10	10
+
+**不要使用Default Value，没有太多实际意义且不安全**。
+
+### 2.7 声明inline函数
+
+​		模块化、程式化编程一直以来都是编写程序所恪守的原则。所谓模块化，就是将程序以最简单的逻辑设计。每个逻辑节点通常是某种动作功能。这一动作功能为一函数。
+
+​		这样的设计，使得每一个函数只实现一个功能。但是有些时候，编译过程中编译的函数过多会降低程序运行的性能。**Overhead for a function call**调用函数存在着“额外的开销”，这是汇编层面的事情。（push and pop）
+
+​		将函数声明为inline，表示编译器在每个函数调用点上，将函数的内容展开。面对一个inline函数，编译器可将该函数的调用操作改为以**一份代码副本**代替，原封不动地嵌入到要调用它的地方去，**但依然维持独立的运算单元**。
+
+```c++
+int f(int i){
+    return i*2;
+}
+int main()
+{
+    int a = 4;
+    int b = f(a);
+}
+//修改为inline
+inline int f(int i)
+{
+    return i*2;
+}
+int main()
+{
+    int a = 4;
+    int b = f(a); //八f()的代码转移到这里
+    /*17行语句实际上是这个样子*/
+    int b = a + a;
+}
+```
+
+
+
+​		在函数返回类型之前加上关键字inline，可以解决一些频繁调用的函数大量消耗栈空间（栈内存）的问题。引入inline函数是为了替代**C中表达式的宏定义**。
+
+<center> #define	ExpressionName(Var1, Var2) ((Var1+Var2)*(var1-Var2))
+
+
+
+
+这种宏定义效率很高，**但是仅仅是符号表中的简单替换，不能享受C++编译器严格检查的好处，它的返回值也不能被强制转换为合适的类型。**inline函数克服了这一缺陷。因此实际上设置成inline的函数，就相当于宏定义中的符号替换。
+
+​		一般而言，最适合声明为inline的函数：**体积小，常被调用，（比如循环体）、所从事的计算并不复杂**。
+
+​		值得一提的是。将函数指定为inline，只是对编译器提出的一种要求。编译器是否执行这样的要求，须视编译器而定。inline函数的定义，常常被放在头文件中。**关键字inline必须与函数定义放在一起才能使函数成为内联函数，仅仅将inline函数放在函数声明前不起任何作用。**
+
+不同于给函数提供默认参数，在头文件中传入默认参数在.cpp程序文件中就不能重复声明，inline函数必须在头文件中和.cpp文件中**同时声明**。“Repeat inline keyword at declaration and definition”.
+
+不重复声明，编译器会报错：
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303032139745.png" alt="image-20230303213956500" style="zoom:80%;" />
+
+正确做法是把inline函数的函数体放入到头文件之中。加上inline的函数，这个时候函数体**成为声明而非定义**。注：声明可以重复，但是定义不能。
+
+对于成员函数，在类的声明时就写出了它的函数体，这个时候**它默认成为内联函数。**在头文件中，为了使class类规整简单，可以在类中只给出函数的声明，而在声明类的花括号结束之后，写出函数的定义，这个时候要加上inline关键字。
+
+### 2.8 Const
+
+被定义成了const的变量，不可修改其值。本质上，它依旧是一个变量，只不过编译器不允许程序操作者对其进行修改。
+
+```c++
+const int class_size = 12;
+int finalGrade[class_size]; // OK
+
+int x;
+cin >> x;
+const int size = x;
+double classAverage[size]; //ERROR!
+```
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303040947809.png" alt="image-20230304094701563" style="zoom:80%;" />
+
+const是编译器进行的操作，第二个代码在编译的过程中并不明确const size的值，因而无法为const变量分配相应大小的内存空间。
+
+**const与指针**
+
+指针可以是const，指针所指的对象也可以是const
+
+```c++
+char * const q = "abc"; //q is const
+*q = 'c'; // OK
+q++; //ERROR!
+
+const char* p = "abcd"; //(*p) is a const char.**不能通过p去修改所指向的对象，不是说指到哪里，哪里变成const！！**
+*p = 'b'; //ERROR!
+```
+
+```c++
+Person p1("Fred", 200);
+const Person* p = &p1; //p所指对象是const
+Person const* p = &p1; //p所指对象是const
+Person *const p = &p1; //指针本身是const
+const Person * const p = &p1; //指针和对象都是const
+```
+
+**写在 * 前面，表示指针所指对象是const；写在 * 后面，表示指针是const**。
+
+```c++
+int* ip;
+const int* cip; //cip所指的对象是const
+
+int i;
+ip = &i;
+cip = &i; //OK，不能通过cip去修改 i
+
+const int ci = 3;
+ip = &ci; //ERROR! ip不是指向const，可以对ci进行修改，可是ci不可以被修改
+cip = &ci; //OK, cip不可以修改ci，ci本身就不允许被修改
+```
+
+`const int *`表示**不可以通过指针去修改所指的对象**。
+
+```c++
+int main()
+{
+    char* s = "hello world";
+    cout << s << endl;
+    s[0] = 'b';
+    cout << s << endl;
+}
+```
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303041020575.png" alt="image-20230304102030265" style="zoom:80%;" />
+
+`"hello world`"是字符串常量。s是本地变量，在堆栈里面，s指向`"hello world"`所在的内存。变量被放置在内存的不同的位置中，本地变量放在**堆栈**内；自己申请的内存位于**堆**中；全局变量在**全局数据区内**；常量，例如字符串常量`"hello world"`，处于**代码段**中。现代操作系统，MMU会对代码段进行保护，使得代码段都不可写。试图做这样的事情，会出现“segmentation fault”的错误。
+
+```c++
+#include<iostream>
+using namespace std;
+int main()
+{
+	//const char* s = "hello world"; //这句会使第8行代码出错
+	char s[] = "hello world"; //和第5行的区别是，s是一个数组，位于堆栈内。“=”实际进行的是拷贝的工作，将代码段的字符串常量拷贝到堆栈内的数组s中
+	cout << s << endl;
+	s[0] = 'B';
+	cout << s << endl;
+}
+/*以上是正确的写法*/
+```
+
+**const对象**
+
+对象的值不可修改，那么函数可能就不被允许使用。怎么知道那些函数会对对象的值进行修改？就需要去查看源码。在一个函数后面加上const，保证这个函数不会去修改这个对象的变量：
+
+```c++
+int Date::set_day(int d){
+    day = d;
+}
+
+int Date::get_day() const{
+    day++; //ERROR! 不可以修改对象的值
+    set_day(12); //ERROR！不能访问非常量的成员！
+    return day;
+}
+```
+
+const声明和原型都要定义。函数后面写上const，实际上是把this变成了const
+
+```c++
+#include<iostream>
+using namespace std;
+class A {
+	int i;
+public:
+    A():i(0){}
+	void f() { cout << "f()" << endl; } //void f(A* this)
+	void f() const { cout << "f() const" << endl; } //void f(const A* this)
+};
+int main()
+{
+	const A a;
+	a.f();
+	return 0;
+}
+```
+
+结果：f() const
+
+当对象中的某一成员变量被设置为const，那么就要在类中对其进行初始化。在initialized list对其进行初始化。
+
+回到本节的的一个例子，可以用枚举的方法给数组传入size
+
+```c++
+class HasArray{
+    enum{size = 100};
+    int array[size]; //OK
+}
+```
+
+
+
+### 2.9 定义并使用模板函数 
 
 ​		函数模板(function template)提供了这样的一个机制：将单一的函数内容与希望显示的各种vector类型绑定(*bind*)起来。function template将参数列表中指定的全部或部分参数的类型信息抽离了出来。在`display_message()`中，我们希望将vector所持的元素类型抽离出来，这样就可以定义出一份不需要再有任何更改的模板。不过这样，我们便遗漏了抽离出来的类型信息。这份类型信息系由用户提供——当他决定采用function template的某个实例时提供。
 
@@ -1045,7 +1260,7 @@ template <typename type>
 void display_message(const string &msg, const list<type> &lt);
 ```
 
-### 2.8 函数指针带来更大的弹性
+### 2.10 函数指针带来更大的弹性
 
 现在要设计一个可以通过vector返回Fiboncci、"Lucas"、"Pell"、"triangle"、"square"、"Pent"六种数列的函数。做法之一就是定义一下一整组函数：
 
@@ -1160,7 +1375,7 @@ enum ns_type{
 seq_ptr = seq_array[ns_pell];
 ```
 
-### 2.9 设定头文件
+### 2.11 设定头文件
 
 ​		调用函数之前必须先声明，如果该函数备多个程序文件调用，多次声明操作低效。为了不用分别在每个文件中声明，吧函数声明放在头文件中，并在每个程序代码中包含这些函数声明。
 
@@ -1513,7 +1728,7 @@ int main()
 
 程序执行某一类的操作时，到底应该执行哪一个子类的操作，应该由程序真正运行时决定，而不是固定的。这就是动态绑定。
 
-## 3.2 初识面向对象程序
+## 3.2 面向对象程序基础——类
 
 ​		在C++中，定义一个类需要创建.h头文件和.cppC++文件。其中头文件中包括**类的声明（declaration）和函数的原型（prototypes），函数的定义即函数体（bodies）则放置在源文件.cpp中。** **注意定义（definition）和声明（declaration）的严重区别！**
 
@@ -1712,7 +1927,7 @@ C++不对变量进行自动的初始化，在Visual C++编译器中，会在定�
 
 ### 3.2.4 构造函数与析构函数
 
-​		C++提供了constructor函数，中文叫构造函数。**构造函数名与类名相同，并没返回类型。构造函数有参数，可以是确定对象如何创造的、可以是初始化变量、等等。**
+​		C++提供了constructor函数，中文叫构造函数。**构造函数名与类名相同，并没返回类型。构造函数有参数，可以是确定对象如何创造的、可以是初始化变量、等等。**构造函数**必须放在public的访问限制中**，否则无法进行访问，就无法构造这个类的对象。
 
 ```C++
 class X{
@@ -1946,7 +2161,17 @@ struct Z{
 }
 ```
 
-友元在运算符重载中经常使用
+友元在运算符重载中经常使用。
+
+注意事项：
+
+1. 声明一个函数或者类是友元，必须要在**请求访问非公有成员的类中声明友元**。
+2. 友元函数在类内声明，定义可以在内部或者外部定义。
+3. C++不允许将某个类的构造函数、析构函数和虚函数声明为友元函数。
+4. 友元关系不具有对称性，只是单方面的允许。
+5. 友元关系不具有传递性
+
+**友元类**，当一个类被声明为友元类时，该类可以存取另一个类的所有私有成员。
 
 ### 3.2.8 构造函数初始值列表
 
@@ -2051,7 +2276,9 @@ g++ a.cpp
 编译通过！
 ```
 
-**类的所有成员变量，都要用初始化列表进行初始化**。
+​	1.**类的所有成员变量，都要用初始化列表进行初始化**。
+
+​	2.父类的构造函数要放在初始化列表之中。
 
 ### 3.2.9 对象的组合（Composition）
 
@@ -2087,7 +2314,9 @@ savingsAccount::SavingsAccount(const char* name, const char* address, int cents)
 } // 这样的写法需要默认构造函数
 ```
 
-### 3.2.10 继承 （Inheritance）
+## 第四章 面向对象程序设计
+
+### 4.1 继承 （Inheritance）
 
 具有继承关系的类，父类（Parent Class又名基类（Basic Class）、超类（Super Class））的数据、操作、接口（public的method）是共享的，是C++核心的技术。
 
@@ -2122,6 +2351,8 @@ int main()
 运行结果：
 
 ![image-20230301161217213](https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303011612416.png)
+
+可以看到，在构造子类b的对象时，其父类的构造函数**被自动调用**！
 
 子类b是否可以直接访问基类的private呢？
 
@@ -2191,3 +2422,271 @@ int main()
 <img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303011623055.png" alt="image-20230301162335876" style="zoom:80%;" />
 
 **protected通常被用于给它的子类访问private的接口**。
+
+**实例** 声明一个雇员类
+
+```c++
+class Employee{
+public:
+    Employee(cost std::string& name, const std::string& ssn);
+    
+    const std::string& get_name() const;
+    void print(std::ostream& out) const;
+    void print(std::ostream& out, const std::string& msg) const;
+protected: //派生类可以使用这个数据，这不是个聪明的选择
+    std::string m_name;
+    std::string m_ssn;
+}
+
+
+Employee::Employee(const string& name, const string& ssn): m_name(name), m_ssn(ssn){}
+/*函数的overload*/
+inline const std::string& Employee::get_name() const
+{
+    return m_name;
+}
+inline void Employee::print(std::ostream& out) const{
+    out<<m_name<<endl;
+    out<<m_ssn<<endl;
+}
+inline void Employee::print(std::ostream& out, const std::string& msg) const
+{
+    out<< msg<<endl;
+    print(out); //利用已经写好的代码，不要code duplication
+}
+```
+
+想要新建一个Manager类，在Employee的基础之上
+
+```c++
+class Manager : public Employee{
+public:
+    Manager(const std::string& name, const std::string& ssn, const std::string& title);
+    const std::string title_name() const;
+    const std::string& get_title() const;
+    void print(std::ostream& out) const; /**/
+private:
+    std::string m_title;
+}
+```
+
+从前面的例子可知，构造一个子类的对象时，基类的构造函数自动地被调用，然而在这个例子中，父类并没有默认构造函数，那么我在创建一个b的对象时，语句`Manager manager`是否存在问题？
+
+为了简化这个问题，我们采用前一个代码：
+
+```c++
+#include<iostream>
+using namespace std;
+class A {
+public:
+	A(int ii) : i(ii) { cout << "A::A()" << endl; }
+	~A() { cout << "A::~A()" << endl; }
+	void print() { cout << "A::f()" << i << endl; }
+protected:
+	void set(int ii) { i = ii; }
+private:
+	int i;
+};
+class B :public A {
+public:
+    B(){};
+	void f() {
+		set(20);
+		print();
+	}
+};
+int main()
+{
+	B b;
+	b.print();
+}
+```
+
+B中没有任何构造函数，A也没有默认构造函数
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303031923421.png" alt="image-20230303192311227" style="zoom:80%;" />
+
+这张图很好地表达了父类与子类的关系：子类中**包含了父类的body**，有了父类所有的东西。
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202302271703046.png" alt="image-20230227170320847" style="zoom:67%;" />
+
+**初始化子类，父类的一切也要初始化，如何初始化？**在对象的组合中，我们就已经看到了**一个对象的初始化只能有该对象所在的类的构造函数来完成**，类的继承也不例外。所以还要父类的构造参与初始化。所以，我们需要调用父类的构造函数。
+
+```c++
+class B :public A {
+public:
+    B() : A(15) {}; //父类的构造函数只能放置在子类的初始化列表之中！不能放在函数体，因为子类不可以主动去调用父类的构造函数
+	void f() {
+		set(20);
+		print();
+	}
+};
+int main()
+{
+	B b;
+	b.print();
+}
+```
+
+**初始化的顺序与列表顺序无关，与声明的顺序有关。**
+
+```c++
+class B :public A {
+public:
+    B() : A(15) {cout << "B::B()" << endl;}; 
+    ~B(){cout<<"B::~B()"<<endl;} // 看看先构造的B还是先构造A
+```
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303031943744.png" alt="image-20230303194311522" style="zoom:80%;" />
+
+**构造顺序、析构顺序完全相反**。
+
+调用父类的函数，要使用类的作用域符::。
+
+如果在子类和父类中定义了名字一样的函数，会怎么样？
+
+```c++
+/*同样地，在原来的代码中稍加改动*/
+#include<iostream>
+using namespace std;
+class A {
+public:
+	A(int ii) :i(ii) { cout << "\tA::A()" << endl; }
+	~A() { cout << "\tA::~A()" << endl; }
+	void print() { cout << "A::print()" << i << endl; } //print()
+	void print(int i) { cout << i; print(); }
+protected:
+	void set(int ii) { i = ii; }
+private:
+	int i;
+};
+
+class B :public A {
+public:
+	void print() { cout << "B::print()" << endl; } //print()
+	void f() {
+		set(20);
+	//	i = 30;
+		print();
+	}
+
+	B() : A(15) { cout << "\tB::B()" << endl; };
+	~B() { cout << "\tB::~B()" << endl; }
+};
+int main()
+{
+	B b;
+	b.print();
+	b.print(200); /*ERROR!函数调用中参数过多、B::print()函数不接受一个参数！
+}
+```
+
+没有与B::print(int)相匹配的函数，称为name hiding，是所有面向对象高级语言中*C++特有的行为*。**如果父类中有重载函数，当子类和父类中出现了重复的函数（名字、参数表相同），那么只剩下子类中的函数，父类中的函数被隐藏**。为什么只有C++这么做？原因来自于另外一个同样是C++特有的特性：子类函数和与它同名的父类函数**没有关系**。其他的OOP语言(Java)如果两个函数同名、同参数表，这叫做Override。要是没有关系，那么所有父类中所有的重载函数都应该没有关系。
+
+子类的对象可以当成父类看待，（学生也是人），多出的东西会被忽略。叫做upcast。
+
+```c++
+Manager pete("Pete", "444-55-6666", "bakery");
+Employee* ep = &pete; //upcast
+Employee& er = pete; //upcast
+```
+
+### 4.2 多态(Polymorphism)
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303041449324.png" alt="image-20230304144921695" style="zoom: 50%;" />
+
+
+
+```c++
+class XYPos{};
+class Shape{
+public:
+    Shape();
+    virtual ~shape(); //析构也存在virtual
+    virtual void render(); //不同类的render操作些许不同
+    void move(const SYPos&);
+    virtual void resize();
+    
+protected:
+    XYPos center;
+};
+```
+
+有了virtual 关键字，子类与父类的同名函数才有了联系。
+
+```c++
+class Ellipse : public Shape{
+public:
+    Ellipse(float maj, float ninr);
+    virtual void render(); //不加virtual，render也是virtual，这样写，是为了提高代码的可读性，知道是virtual了就不必再看Shape
+protected:
+    float major_axis, minor_axis;
+};
+class Circle : public Ellipse{
+public:
+    Circle(float radius) : Ellipse(radius, radius){}
+    virtual void render();
+};
+
+void render(Shape* p){
+    p->render();
+}
+void func(){
+    Ellipse ell(10, 20);
+    ell.render(); 
+    Circle circ(40);
+    circ.render();
+    render(&ell); //upcast，执行ellipse的render
+    render(&circ); //upcast，执行Circle的render
+}
+```
+
+对于相同的method，在运用到不同的派生类，可能会略有不同，但都是基于基类，这样的现象被称为多态(polymorphism)。在上述代码中，**p是多态的**，p指了什么对象，就变成哪个对象的形态。
+
+**Polymorphism基于upcast，将派生类当成基类来看待；同时基于dynamic binding，程序执行某一类的操作时，到底应该执行哪一个子类的操作，应该由程序真正运行时指针所指对象决定，而不是固定的。这就是动态绑定。**
+
+如何实现多态？采用虚函数。
+
+```c++
+#include<iostream>
+using namespace std;
+class A {
+public:
+	A() :i(10) {}
+	virtual void f() { cout << "A::f()" << i << endl; }
+	int i;
+};
+int main()
+{
+	A a;
+	a.f();
+	cout << sizeof(a) << endl;
+
+	int* p = (int*)&a;
+	//p++;
+	cout << *p << endl;
+}
+```
+
+结果：
+
+A::f()10
+8
+8887092
+
+执行`p++`的操作：
+
+A::f()10
+8
+10
+
+说名a中在i的上面还有东西，是什么呢？是指针。
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303041741209.png" alt="image-20230304174114063" style="zoom: 50%;" />
+
+所有含有virtual的对象中，最开始会自动加上一个隐藏的指针。vptr指向一张表叫做“vtable”，这里面有所有virtual函数的地址。vtable属于这个类的而非具体的对象。不同的对象的这张表相同。
+
+采用虚函数，基类希望派生类对其进行覆盖。当我们使用指针或引用调用虚函数时，该调用将被动态绑定。**根据引用或指针所绑定的对象类型不同，执行基类的版本或者派生类的版本。**所以，对虚函数的调用可能在运行时刻才会被解析。
+
+
+
