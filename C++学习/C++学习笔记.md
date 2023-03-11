@@ -2583,7 +2583,7 @@ int main()
 
 没有与B::print(int)相匹配的函数，称为name hiding，是所有面向对象高级语言中*C++特有的行为*。**如果父类中有重载函数，当子类和父类中出现了重复的函数（名字、参数表相同），那么只剩下子类中的函数，父类中的函数被隐藏**。为什么只有C++这么做？原因来自于另外一个同样是C++特有的特性：子类函数和与它同名的父类函数**没有关系**。其他的OOP语言(Java)如果两个函数同名、同参数表，这叫做Override。要是没有关系，那么所有父类中所有的重载函数都应该没有关系。
 
-子类的对象可以当成父类看待，（学生也是人），多出的东西会被忽略。叫做upcast。
+子类的对象可以当成父类看待，（学生也是人），多出的东西会被忽略。叫做upcast。upcast**只能通过指针和引用实现**这是后面介绍的多态的基础。。
 
 ```c++
 Manager pete("Pete", "444-55-6666", "bakery");
@@ -2645,7 +2645,7 @@ void func(){
 
 **Polymorphism基于upcast，将派生类当成基类来看待；同时基于dynamic binding，程序执行某一类的操作时，到底应该执行哪一个子类的操作，应该由程序真正运行时指针所指对象决定，而不是固定的。这就是动态绑定。**
 
-如何实现多态？采用虚函数。
+如何实现多态？采用虚函数。虚函数会多出来什么东西呢？虚函数是有它特殊的地方的。 
 
 ```c++
 #include<iostream>
@@ -2684,9 +2684,191 @@ A::f()10
 
 <img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303041741209.png" alt="image-20230304174114063" style="zoom: 50%;" />
 
-所有含有virtual的对象中，最开始会自动加上一个隐藏的指针。vptr指向一张表叫做“vtable”，这里面有所有virtual函数的地址。vtable属于这个类的而非具体的对象。不同的对象的这张表相同。
+所有含有virtual的对象中，**最开始会自动加上一个隐藏的指针。vptr指向一张表叫做“vtable”，这里面有所有virtual函数的地址。vtable属于这个类的而非具体的对象。不同的对象的这张表相同**。
 
-采用虚函数，基类希望派生类对其进行覆盖。当我们使用指针或引用调用虚函数时，该调用将被动态绑定。**根据引用或指针所绑定的对象类型不同，执行基类的版本或者派生类的版本。**所以，对虚函数的调用可能在运行时刻才会被解析。
+```c++
+int main()
+{
+    A a, b;
+    int *p = (int*)&a;
+    int *q = (int*)&b;
+    
+    int* x = (int*)*p; //p所指的那个指针
+	cout<< *x << endl;
+}
+```
 
+```c++
+class Ellipse : public Shape
+{
+public:
+    Ellipse(float major, float minor);
+    virtual void render();
+protected:
+    float major_axis;
+    float minor-axis;
+};
+```
 
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303101858273.png" alt="image-20230310185857938" style="zoom: 50%;" />
+
+<img src="https://gitee.com/you-xu2003/markdown-pic/raw/master/img/202303041741209.png" alt="image-20230304174114063" style="zoom: 50%;" />
+
+在Ellipse类中的vtable与其父类的vtable的结构是一样的（destructor, render, resize的结构顺序）。但是地址值是不一样的，因为这些是子类的操作。
+
+得出结论：采用虚函数，基类希望派生类对其进行覆盖。当我们使用**指针或引用**调用虚函数时，该调用将被动态绑定。**根据引用或指针所绑定的对象类型不同，执行基类的版本或者派生类的版本。**所以，对虚函数的调用可能在运行时刻才会被解析。
+
+对于拥有同一父类的派生类之间能否直接进行赋值？换句话说，不同子类之间进行赋值会发生什么？
+
+```c++
+Ellipse elly (20F, 40F);
+Circle circ(60F);
+elly = circ;
+```
+
+Circle内部含有的东西要多于Ellipse对象。如果给Ellipse的elly传入Circle的circ，elly是Ellipse还是Circle？
+
+```c++
+#include<iostream>
+using namespace std;
+class A {
+public:
+	A() :i(10) {}
+	virtual void f() { cout << "A::f()" << i << endl; }
+	int i;
+};
+class B :public A {
+public:
+	B(): j(20){}
+	virtual void f() { cout << "B::f()" <<j<< endl; }
+	int j;
+};
+int main()
+{
+	A a;
+	B b;
+
+	A* p = &b;
+	p->f();
+    
+    a = b;
+    a.f();
+}
+```
+
+运行结果：
+
+B::f()20
+
+A::f()10
+
+polypmorphim依靠指针或者引用来调用virtual函数，才会是动态绑定，通过点运算符不会实现动态绑定的。
+
+```c++
+int main()
+{
+    A a;
+    B b;
+    
+    A* p = &b;
+    p->f();
+    a = b;
+    
+    p = &a;
+    p->f(); //这时时a还是b？
+}
+```
+
+运行结果：
+
+B::f()20
+A::f()10
+
+让b=a，**并没有把b的vptr赋给a**,在上述赋值过程中**vptr是不传递的**。
+
+```c++
+int main()
+{
+    A a;
+    B b;
+    
+    A*p = &a;
+    int* r = (int*)&a;
+    int* t = (int*)&b;
+    *r = *t;
+    p->f();
+    
+}
+```
+
+运行结果：
+
+B::f()-858993460
+
+哈哈，因为将类A的vptr改为B的vptr，执行p->f()这个语句时，执行的是B类的f()，B的f()要找j，j是在i的下面，但是对象a中并没有j，i下面是未被使用的空内存，存储的是混乱的数字。
+
+不同子类之间的赋值称作**sliced off**，circ对象中只有**适应于elly的部分才被copy**，在赋值的过程中，circ的vtable被忽略，elly的vtable就是Ellipse的vtable。
+
+```c++
+Ellipse* elly = new Ellipse(20F, 40F);
+Circle* circ = new Circle(60F);
+elly = circ;
+```
+
+这个时候elly->render就是Circle::render()了。
+
+对于引用，是同样的
+
+```c++
+void func(Ellipse& elly){
+    elly.render();
+}
+Circle circ(60F);
+func(circ);//Circle::render()
+```
+
+对于析构函数，为什么析构函数也要是virtual的呢？
+
+```c++
+Shape* p = new Ellipse(100.0F, 200.0F); //制作出了新的对象Ellipse把它交给父类的指针
+// ...
+delete p; //释放掉这块内存
+```
+
+想要让Ellipse:: ~Ellipse()被调用，必须要声明Shape:: ~Shape()是virtual的，否则在执行上面的代码的时候，会自动调用`Shape::~Shape()`，如果不是virtual，发生的绑定是静态绑定，意味着基类的析构被调用。**如果一个类中，只要有一个虚函数，那么这个类的析构函数必须是virtual的**。
+
+**Overriding**
+
+父类和子类的两个函数是virtual的，这两个函数名称、参数表相同，这两个函数构成override。
+
+```c++
+void Derived::func(){
+    cout << "In Derived::func!";
+    Base::func(); //调用基类的override函数
+}
+```
+
+```c++
+class Expr{
+public:
+    virtual Expr* newExpr();
+    virtual Expr& clone();
+    virtual Expr self();
+};
+
+class BinaryExpr : public Expr{
+public:
+    virtual BinaryExpr* newExpr(); //OK
+    virtual BinaryExpr& clone(); //Ok
+    virtual BinaryExpr self(); //ERROR!
+}
+```
+
+只有指针（引用）才可以构成upcast 。
+
+**override和overload**
+
+当父类中的一个函数具有overload，那么，子类在进行override的时候**要override所有函数**，否则另外的函数将会发生name hiding。
+
+### 4.3 引用再谈
 
